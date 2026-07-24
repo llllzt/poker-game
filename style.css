@@ -278,6 +278,69 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .banner .reveal .card.small { width: 22px; height: 30px; font-size: 10px; }
 }
 
+/* ---------- 竖屏手机适配（与横屏对称：body 不滚动，桌面纵向撑满，操作条固定底） ---------- */
+@media (orientation: portrait) and (max-width: 920px) {
+  body { overflow: hidden; }
+  .topbar { padding: 6px 10px; }
+  .room-code { font-size: 13px; letter-spacing: 2px; padding: 3px 8px; }
+  .status { font-size: 11px; line-height: 1.4; }
+  .btn-mini { padding: 4px 8px; font-size: 11px; }
+  #waiting { margin: 12px auto; }
+  #waiting h2 { font-size: 18px; margin: 6px 0; }
+  .player-list li { padding: 10px 12px; }
+  .table-wrap {
+    padding: 6px 8px 0;
+    height: calc(100vh - 42px - 108px);  /* topbar + 固定操作条让位（动作条更高，留足） */
+    display: flex; flex-direction: column;
+    box-sizing: border-box;
+  }
+  .table {
+    width: 100%; max-width: none; flex: 1 1 0; min-height: 0;
+    aspect-ratio: auto; margin: 0 auto; border-width: 6px;
+    border-radius: 48% / 38%;
+  }
+  .community { top: 42%; gap: 5px; }
+  .community .card { width: 30px; height: 42px; font-size: 14px; }
+  .pot { top: 60%; font-size: 12px; }
+  .seats { inset: 0; }
+  .seat {
+    width: auto; max-width: 38vw;
+    transform: translate(-50%, -50%) scale(.95);
+  }
+  .seat .card-row { margin-bottom: 3px; min-height: 32px; gap: 2px; }
+  .seat .card-row .card { width: 24px; height: 34px; font-size: 11px; }
+  .seat .pinfo { padding: 4px 7px; font-size: 11px; line-height: 1.35; }
+  .seat .pname { font-size: 12px; }
+  .seat .pchips { font-size: 11px; }
+  .seat .paction { font-size: 10px; min-height: 12px; }
+  .seat .rank { min-width: 16px; height: 16px; font-size: 10px; }
+  .seat.turn { z-index: 5; }
+  /* 操作条固定在视口底部，与横屏一致 */
+  .action-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    margin: 0;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(21,24,29,.98);
+    border-top: 1px solid #2b323c;
+    box-shadow: 0 -4px 14px rgba(0,0,0,.4);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    z-index: 25;
+    min-height: 72px;
+  }
+  .action-info { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 12px; margin-bottom: 0; min-width: 78px; }
+  .raise-box { flex: 1 1 100px; margin-bottom: 0; min-width: 90px; }
+  .raise-val { margin-top: 2px; font-size: 12px; }
+  .action-btns { flex: 0 0 auto; grid-template-columns: repeat(4, auto); }
+  .action-btns .btn { padding: 12px 12px; font-size: 13px; }
+  .host-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(21,24,29,.98); border-top: 1px solid #2b323c; z-index: 25; }
+  .host-bar .btn { flex: 1; max-width: none; padding: 12px 14px; }
+  .banner { max-width: 86vw; padding: 14px 18px; }
+  .banner .reveal .card.small { width: 22px; height: 30px; font-size: 10px; }
+  .modal-card { max-width: 86%; }
+  .help-card { width: 92%; max-width: 92%; }
+}
+
 /* ---------- 改名弹窗 ---------- */
 .modal { position: fixed; inset: 0; z-index: 110; display: flex; align-items: center; justify-content: center; background: rgba(10,14,18,.8); }
 .modal.hidden { display: none !important; }
