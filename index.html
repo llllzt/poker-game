@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>德州扑克 · 内部娱乐局</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 大厅 -->
+  <section id="lobby" class="screen active">
+    <div class="lobby-card">
+      <h1>🂡 德州扑克</h1>
+      <p class="subtitle">小范围内部娱乐局 · 最多 10 人</p>
+      <label class="field">
+        <span>你的昵称</span>
+        <input id="nameInput" type="text" maxlength="10" placeholder="例如：老王" />
+      </label>
+
+      <div class="lobby-block">
+        <label class="field" id="roomNameField">
+          <span>房间名称</span>
+          <input id="roomNameInput" type="text" maxlength="12" placeholder="例如：周五夜局" />
+        </label>
+        <button id="createBtn" class="btn btn-primary">创建房间</button>
+      </div>
+
+      <div class="lobby-divider">或加入</div>
+
+      <!-- 服务器模式：房间目录（点击加入，免输房间码） -->
+      <div id="roomListSection" class="room-list-section hidden">
+        <p class="hint tight">点击下方房间即可加入：</p>
+        <ul id="roomList" class="room-list"></ul>
+      </div>
+
+      <!-- P2P 回退：房间码加入 -->
+      <div id="codeJoinSection" class="join-row hidden">
+        <input id="codeInput" type="text" maxlength="6" placeholder="房间码" />
+        <button id="joinBtn" class="btn">加入</button>
+      </div>
+
+      <p id="lobbyMsg" class="msg"></p>
+      <p id="lobbyHint" class="hint">正在探测连接方式…</p>
+    </div>
+  </section>
+
+  <!-- 游戏 -->
+  <section id="game" class="screen">
+    <header class="topbar">
+      <div class="room-info">
+        <span class="room-code" id="roomCode">----</span>
+        <button id="copyBtn" class="btn-mini" title="复制房间码">复制</button>
+      </div>
+      <div class="status" id="status">连接中…</div>
+      <button id="leaveBtn" class="btn-mini ghost">退出</button>
+    </header>
+
+    <!-- 等待室 -->
+    <div id="waiting" class="waiting">
+      <h2>等待玩家加入</h2>
+      <ul id="playerList" class="player-list"></ul>
+      <p class="hint">把房间码发给朋友，集齐 2 人以上即可开始。</p>
+      <button id="startBtn" class="btn btn-primary" disabled>开始游戏（至少 2 人）</button>
+    </div>
+
+    <!-- 牌桌 -->
+    <div id="table" class="table-wrap hidden">
+      <div class="table">
+        <div class="community" id="community"></div>
+        <div class="pot" id="pot">底池 0</div>
+        <div class="seats" id="seats"></div>
+      </div>
+
+      <!-- 操作条 -->
+      <div id="actionBar" class="action-bar hidden">
+        <div class="action-info">
+          <span id="toCall">需跟注 0</span>
+          <span id="myChips">筹码 0</span>
+        </div>
+        <div class="raise-box" id="raiseBox">
+          <input id="raiseInput" type="range" min="0" max="0" value="0" />
+          <div class="raise-val"><span id="raiseLabel">加注到 0</span><button id="allinBtn" class="btn-mini">全下</button></div>
+        </div>
+        <div class="action-btns">
+          <button id="foldBtn" class="btn danger">弃牌</button>
+          <button id="checkBtn" class="btn">过牌</button>
+          <button id="callBtn" class="btn primary">跟注</button>
+          <button id="raiseBtn" class="btn warn">加注</button>
+        </div>
+      </div>
+
+      <!-- 房主控制 -->
+      <div id="hostBar" class="host-bar hidden">
+        <button id="nextHandBtn" class="btn btn-primary">下一手</button>
+        <button id="resetBtn" class="btn ghost">重置筹码</button>
+      </div>
+
+      <div id="banner" class="banner hidden"></div>
+    </div>
+  </section>
+
+  <!-- 竖屏提示遮罩（仅手机竖屏显示，横屏自动隐藏） -->
+  <div id="rotateHint" class="rotate-hint hidden">
+    <div class="rotate-card">
+      <div class="rotate-icon">📱 ↻</div>
+      <p>请将手机横屏<br />以获得最佳牌桌体验</p>
+      <button id="rotateOk" class="btn-mini">仍用竖屏</button>
+    </div>
+  </div>
+
+  <!-- 改名弹窗（点自己的座位卡触发） -->
+  <div id="renameModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>修改我的昵称</h3>
+      <input id="renameInput" type="text" maxlength="10" placeholder="输入新昵称" />
+      <div class="modal-actions">
+        <button id="renameCancel" class="btn ghost">取消</button>
+        <button id="renameSave" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="engine.js"></script>
+  <script src="net.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
