@@ -272,49 +272,34 @@
 
   // 渲染每个玩家下注的筹码堆（位于玩家和桌子中心连线的中段，朝向中心）
   function renderChipStakes(state) {
-    // 移除旧层
+    // 清掉旧独立浮层（兼容老代码）
     var old = tableWrap.querySelector('.chip-stakes');
     if (old) old.remove();
-    var layer = document.createElement('div');
-    layer.className = 'chip-stakes';
+    tableWrap.querySelectorAll('.seat .seat-chips').forEach(function (n) { n.remove(); });
     state.players.forEach(function (p) {
       if (!p.bet || p.bet <= 0) return;
-      var px = p._x || 50, py = p._y || 50;
-      var dx = 50 - px, dy = 50 - py;
-      var len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 1) return;
-      var ux = dx / len, uy = dy / len;
-      var cx = px + ux * 18;
-      var cy = py + uy * 18;
-      var stack = document.createElement('div');
-      stack.className = 'chip-stack';
-      stack.style.left = cx + '%';
-      stack.style.top = cy + '%';
-      // 金额标签
-      var amt = document.createElement('div');
-      amt.className = 'chip-amount';
-      amt.textContent = p.bet;
-      stack.appendChild(amt);
-      // 横向筹码串（最少 1 最多 5，与下注量成正比），放在 .chips-row 容器里
-      var n = Math.max(1, Math.min(5, Math.ceil(p.bet / 20)));
+      var seatEl = tableWrap.querySelector('.seat[data-pid="' + p.id + '"]');
+      if (!seatEl) return;
+      var info = seatEl.querySelector('.pinfo');
+      if (!info) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'seat-chips';
+      var amt = document.createElement('span');
+      amt.className = 'seat-chips-amt';
+      amt.textContent = '下注 ' + p.bet;
+      wrap.appendChild(amt);
+      var row = document.createElement('span');
+      row.className = 'seat-chips-row';
+      var n = Math.max(1, Math.min(4, Math.ceil(p.bet / 25)));
       var colors = ['c-red', 'c-blue', 'c-gold', 'c-green', 'c-purple'];
-      var chipsRow = document.createElement('div');
-      chipsRow.className = 'chips-row';
       for (var i = 0; i < n; i++) {
-        var chip = document.createElement('div');
+        var chip = document.createElement('span');
         chip.className = 'chip ' + colors[i % colors.length];
-        chipsRow.appendChild(chip);
+        row.appendChild(chip);
       }
-      stack.appendChild(chipsRow);
-      layer.appendChild(stack);
+      wrap.appendChild(row);
+      info.appendChild(wrap);
     });
-    // 插入到 .seats 所在容器（.table）中，作为 .seats 的兄弟节点，共享同一坐标体系。
-    // 必须用 seats 的「直接父节点」作为插入目标：否则 insertBefore 会因参考节点
-    // （.seats 的 nextSibling 是 .table 内的空白文本节点）不属于该父节点而抛
-    // NotFoundError，导致 renderTable 在 updateActionBar 之前中断、操作条永久隐藏。
-    var seats = tableWrap.querySelector('.seats');
-    var layerParent = (seats && seats.parentNode) ? seats.parentNode : tableWrap;
-    layerParent.appendChild(layer);
   }
 
   function findMe(state) {
@@ -342,6 +327,7 @@
   function renderSeat(p, me, rank) {
     var el = document.createElement('div');
     el.className = 'seat' + (p.isTurn ? ' turn' : '') + (p.isDealer ? ' dealer' : '') + (p.isSB ? ' sb' : '') + (p.isBB ? ' bb' : '') + (p.folded ? ' folded' : '') + (p.id === myId ? ' mine' : '');
+    el.dataset.pid = p.id;
     el.style.left = p._x + '%';
     el.style.top = p._y + '%';
 
@@ -371,7 +357,7 @@
     info.innerHTML =
       '<div class="pname">' + rankBadge + escapeHtml(p.name) + roleTags + badges + '</div>' +
       '<div class="pchips">' + p.chips + ' 筹</div>' +
-      (p.bet > 0 ? '<div class="paction">下注 ' + p.bet + '</div>' : '<div class="paction">' + actionText(p) + '</div>');
+      (p.bet > 0 ? '<div class="paction"></div>' : '<div class="paction">' + actionText(p) + '</div>');
     el.appendChild(info);
     // 点击自己的座位卡可改名
     if (p.id === myId) {

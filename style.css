@@ -240,6 +240,16 @@ input[type=text]:focus { border-color: var(--primary-2); }
 .seat .pname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .seat .pchips { color: var(--gold); font-variant-numeric: tabular-nums; }
 .seat .paction { font-size: 12px; color: var(--muted); min-height: 15px; margin-top: 1px; }
+
+/* 座位卡内的下注筹码行（替代之前的独立浮层，永远不会入侵公牌/底池） */
+.seat .seat-chips {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin-top: 4px; padding-top: 4px;
+  border-top: 1px dashed rgba(232,196,106,.25);
+}
+.seat .seat-chips-amt { font-size: 11px; color: var(--gold); font-weight: 600; }
+.seat .seat-chips-row { display: inline-flex; align-items: center; gap: 2px; }
+.seat .seat-chips-row .chip { width: 11px; height: 11px; border-width: 1.5px; }
 .seat.folded .pinfo { opacity: .45; }
 .seat.folded .card-row { opacity: .25; }
 .seat.mine .pinfo { border-color: var(--primary-2); box-shadow: 0 0 0 2px rgba(58,160,111,.45); cursor: pointer; }
@@ -442,6 +452,9 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .seat .pname { font-size: 12.5px; }
   .seat .pchips { font-size: 11.5px; }
   .seat .paction { font-size: 10.5px; min-height: 13px; }
+  .seat .seat-chips { margin-top: 3px; padding-top: 3px; }
+  .seat .seat-chips-amt { font-size: 10px; }
+  .seat .seat-chips-row .chip { width: 9px; height: 9px; border-width: 1px; }
   .seat .rank { min-width: 17px; height: 17px; font-size: 10.5px; }
   .seat .role-tag { font-size: 8.5px; padding: 1px 3px; }
   .seat.turn { z-index: 5; }
