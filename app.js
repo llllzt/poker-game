@@ -284,9 +284,8 @@
       var len = Math.sqrt(dx * dx + dy * dy);
       if (len < 1) return;
       var ux = dx / len, uy = dy / len;
-      // 朝向中心偏移 28%（桌面上、玩家座位和中心之间）
-      var cx = px + ux * 28;
-      var cy = py + uy * 28;
+      var cx = px + ux * 18;
+      var cy = py + uy * 18;
       var stack = document.createElement('div');
       stack.className = 'chip-stack';
       stack.style.left = cx + '%';
