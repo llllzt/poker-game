@@ -287,3 +287,21 @@ input[type=text]:focus { border-color: var(--primary-2); }
 .modal-actions { display: flex; gap: 10px; }
 .modal-actions .btn { flex: 1; }
 
+/* ---------- 大厅标题行（含问号按钮） ---------- */
+.lobby-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lobby-head h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: 1px; }
+
+/* ---------- 玩法说明弹窗 ---------- */
+.help-card { width: 92%; max-width: 480px; max-height: 84vh; display: flex; flex-direction: column; padding: 0; }
+.help-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #2b323c; }
+.help-head h3 { margin: 0; font-size: 17px; }
+.help-body { padding: 16px 20px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.help-body h4 { margin: 16px 0 6px; font-size: 14px; color: var(--gold); letter-spacing: .5px; }
+.help-body h4:first-child { margin-top: 0; }
+.help-body p { margin: 0 0 6px; font-size: 13.5px; line-height: 1.7; color: #d4dae2; }
+.help-body b { color: var(--text); }
+.help-body ul { margin: 0 0 6px; padding-left: 18px; }
+.help-body li { font-size: 13.5px; line-height: 1.7; color: #d4dae2; margin-bottom: 2px; }
+.help-body .rank-list { line-height: 2; }
+.help-body .hint.tight { margin: 4px 0 2px; }
+

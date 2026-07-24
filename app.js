@@ -432,6 +432,17 @@
     showScreen('lobby');
   });
 
+  // ---------- 玩法说明（点问号 ?） ----------
+  var helpModal = $('helpModal'), helpClose = $('helpClose');
+  var helpBtn = $('helpBtn'), helpBtnLobby = $('helpBtnLobby');
+  function openHelp() { if (helpModal) helpModal.classList.remove('hidden'); }
+  function closeHelp() { if (helpModal) helpModal.classList.add('hidden'); }
+  if (helpBtn) helpBtn.addEventListener('click', openHelp);
+  if (helpBtnLobby) helpBtnLobby.addEventListener('click', openHelp);
+  if (helpClose) helpClose.addEventListener('click', closeHelp);
+  if (helpModal) helpModal.addEventListener('click', function (e) { if (e.target === helpModal) closeHelp(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeHelp(); });
+
   // ---------- 牌局内改名（点自己座位卡） ----------
   var renameModal = $('renameModal'), renameInput = $('renameInput'), renameSave = $('renameSave'), renameCancel = $('renameCancel');
   function openRename() {

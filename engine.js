@@ -366,6 +366,11 @@
   };
 
   Room.prototype.dealStreet = function () {
+    // 真实德州发牌流程：每发一条街（翻牌/转牌/河牌）前，荷官先烧掉一张牌（burn），
+    // 该牌不参与本手任何比牌。烧牌不改变牌局结果（烧掉的是随机牌），但让发牌更贴近现实。
+    var need = (this.stage === 'preflop') ? 4 : 2; // 烧 1 张 + 本街要发的张数
+    if (this.deck.length < need) return;            // 安全保护，正常 10 人局远不会触发
+    this.deck.pop();                                // 烧牌
     if (this.stage === 'preflop') { this.community.push(this.deck.pop(), this.deck.pop(), this.deck.pop()); this.stage = 'flop'; }
     else if (this.stage === 'flop') { this.community.push(this.deck.pop()); this.stage = 'turn'; }
     else if (this.stage === 'turn') { this.community.push(this.deck.pop()); this.stage = 'river'; }

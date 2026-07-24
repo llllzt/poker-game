@@ -10,7 +10,10 @@
   <!-- 大厅 -->
   <section id="lobby" class="screen active">
     <div class="lobby-card">
-      <h1>🂡 德州扑克</h1>
+      <div class="lobby-head">
+        <h1>🂡 德州扑克</h1>
+        <button id="helpBtnLobby" class="btn-mini" title="玩法说明">?</button>
+      </div>
       <p class="subtitle">小范围内部娱乐局 · 最多 10 人</p>
       <label class="field">
         <span>你的昵称</span>
@@ -52,6 +55,7 @@
         <button id="copyBtn" class="btn-mini" title="复制房间码">复制</button>
       </div>
       <div class="status" id="status">连接中…</div>
+      <button id="helpBtn" class="btn-mini" title="玩法说明">?</button>
       <button id="leaveBtn" class="btn-mini ghost">退出</button>
     </header>
 
@@ -116,6 +120,52 @@
       <div class="modal-actions">
         <button id="renameCancel" class="btn ghost">取消</button>
         <button id="renameSave" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 玩法说明弹窗（点问号 ? 触发） -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card help-card">
+      <div class="help-head">
+        <h3>🂡 德州扑克 · 玩法说明</h3>
+        <button id="helpClose" class="btn-mini" title="关闭">✕</button>
+      </div>
+      <div class="help-body">
+        <h4>一、游戏目标</h4>
+        <p>每位玩家拿到 <b>2 张底牌</b>（仅自己可见），与桌面逐步发出的 <b>5 张公共牌</b> 自由组合，形成最大的 5 张牌型，赢走底池。你也可以通过下注逼对手弃牌，直接拿下底池。</p>
+
+        <h4>二、一局流程</h4>
+        <ul>
+          <li><b>翻牌前（Pre-flop）</b>：先下盲注，每人发 2 张底牌，下注一轮。</li>
+          <li><b>翻牌（Flop）</b>：发出 3 张公共牌，下注一轮。</li>
+          <li><b>转牌（Turn）</b>：发出第 4 张公共牌，下注一轮。</li>
+          <li><b>河牌（River）</b>：发出第 5 张公共牌，下注一轮。</li>
+          <li><b>摊牌（Showdown）</b>：剩余玩家亮牌比大小，最大者赢池。</li>
+        </ul>
+        <p class="hint tight">注：真实牌桌上，荷官每发一条街前会先「烧掉」一张牌（不参与比牌）。本游戏严格复刻了这一流程。</p>
+
+        <h4>三、下注术语</h4>
+        <ul>
+          <li><b>盲注（小盲 / 大盲）</b>：庄家左侧两位玩家每手强制下的注，用来启动底池。</li>
+          <li><b>弃牌（Fold）</b>：放弃本手，不再参与，已下的注不退还。</li>
+          <li><b>过牌（Check）</b>：当前无人下注时，可选择不下注、把行动权交给下家。</li>
+          <li><b>跟注（Call）</b>：下与他人当前下注额相同的筹码，继续留在牌局。</li>
+          <li><b>加注（Raise）</b>：提高下注额，逼对手跟更多或弃牌。</li>
+          <li><b>全下（All-in）</b>：把剩余所有筹码一次押入；不足跟注/加注时仅以现有筹码参与。</li>
+        </ul>
+
+        <h4>四、牌型大小（从大到小）</h4>
+        <p class="rank-list">
+          <b>同花顺</b> ＞ <b>四条</b> ＞ <b>葫芦</b> ＞ <b>同花</b> ＞ <b>顺子</b> ＞ <b>三条</b> ＞ <b>两对</b> ＞ <b>一对</b> ＞ <b>高牌</b>
+        </p>
+        <p class="hint tight">同级比点数大小；完全相同则平分底池。</p>
+
+        <h4>五、庄家按钮（D）</h4>
+        <p>桌面标记 <b>D</b> 的位置即庄家。它每手顺时针移动一位，决定盲注位置与行动顺序。位置越靠后（越接近庄家）信息越多，通常越有利。</p>
+
+        <h4>六、小提示</h4>
+        <p>这是 <b>记分娱乐局</b>，初始每人等额筹码、盲注固定、可随时重置，<b>不涉赌金</b>——纯用来练手感、磨策略、找乐子。祝玩得开心 🍀</p>
       </div>
     </div>
   </div>
