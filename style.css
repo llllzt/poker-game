@@ -173,29 +173,30 @@ input[type=text]:focus { border-color: var(--primary-2); }
   position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%);
   display: flex; gap: 8px; z-index: 3;
 }
-/* 底池：横向药丸 = 数字 + 横向筹码串（筹码不再堆叠挡住文字） */
+/* 底池：药丸里放文字 + 筹码串（两行：文字在上、筹码在下） */
 .pot {
   position: absolute; left: 50%; top: 64%; transform: translateX(-50%);
   color: var(--gold); font-weight: 600; font-size: 14px; letter-spacing: .5px;
-  display: flex; flex-direction: row; align-items: center; gap: 8px;
-  background: rgba(0,0,0,.6); padding: 5px 12px 5px 12px; border-radius: 999px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: rgba(0,0,0,.6); padding: 5px 10px; border-radius: 14px;
   box-shadow: 0 2px 6px rgba(0,0,0,.45);
   z-index: 3;
   white-space: nowrap;
+  line-height: 1.1;
 }
 .pot-text { line-height: 1; }
-.pot-chips { display: flex; flex-direction: row; align-items: center; }
-.pot-chips .chip { width: 14px; height: 14px; margin: 0 -5px 0 0; border-width: 1.5px; }
-.pot-chips .chip:first-child { margin-left: 0; }
+.pot-chips { display: flex; flex-direction: row; align-items: center; gap: 2px; }
+.pot-chips .chip { width: 14px; height: 14px; border-width: 1.5px; }
 
 .seats { position: absolute; inset: 0; z-index: 2; }
 
 /* ---------- 筹码堆（视觉化） ---------- */
+/* 两行布局：金额标签在上、筹码串在下，避免与数字重叠 */
 .chip-stakes { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
 .chip-stack {
   position: absolute;
   transform: translate(-50%, -50%);
-  display: flex; flex-direction: row; align-items: center; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.5));
   white-space: nowrap;
 }
@@ -206,14 +207,11 @@ input[type=text]:focus { border-color: var(--primary-2); }
   padding: 1px 6px; border-radius: 8px;
   letter-spacing: .3px;
   line-height: 1.2;
-  order: 2;
 }
 .chip-stack .chips-row {
   display: flex; flex-direction: row; align-items: center;
-  order: 1;
-  gap: 1px;
+  gap: 2px;
 }
-.chip-stack .chip { order: 1; margin: 0; }
 .chip {
   width: 16px; height: 16px;
   border-radius: 50%;
@@ -375,8 +373,8 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .seat .rank { min-width: 17px; height: 17px; font-size: 10.5px; }
   .seat .role-tag { font-size: 8.5px; padding: 1px 3px; }
   .seat.turn { z-index: 5; }
-  .chip-stack { transform: translate(-50%, -50%) scale(.85); gap: 3px; }
-  .chip-stack .chip { width: 14px; height: 14px; margin: 0; }
+  .chip-stack { transform: translate(-50%, -50%) scale(.85); gap: 2px; }
+  .chip-stack .chip { width: 14px; height: 14px; }
   .chip-stack .chips-row { gap: 1px; }
   .chip-stack .chip-amount { font-size: 9.5px; padding: 1px 4px; }
   /* 关键修复：操作条固定在视口底部，确保不被系统导航栏遮住 */
@@ -447,8 +445,8 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .seat .rank { min-width: 17px; height: 17px; font-size: 10.5px; }
   .seat .role-tag { font-size: 8.5px; padding: 1px 3px; }
   .seat.turn { z-index: 5; }
-  .chip-stack { transform: translate(-50%, -50%) scale(.8); gap: 3px; }
-  .chip-stack .chip { width: 13px; height: 13px; margin: 0; }
+  .chip-stack { transform: translate(-50%, -50%) scale(.8); gap: 2px; }
+  .chip-stack .chip { width: 13px; height: 13px; }
   .chip-stack .chips-row { gap: 1px; }
   .chip-stack .chip-amount { font-size: 9.5px; padding: 1px 4px; }
   /* 操作条固定在视口底部，与横屏一致 */
