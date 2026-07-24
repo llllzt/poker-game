@@ -484,6 +484,12 @@
         var names = pot.winners.map(function (id) { return escapeHtml(nameOf(state, id)); }).join('、');
         html += '<div class="winners">' + names + ' 以「' + pot.handName + '」赢得 ' + pot.amount + '</div>';
       });
+      // 5 张公共牌：在 winners 行下方单独展示，让人一眼看出公牌与各人手牌如何组成最终牌型
+      if (r.community && r.community.length) {
+        html += '<div class="community-line"><div class="lbl">公牌</div><div class="cards">';
+        r.community.forEach(function (c) { html += cardHTML(c); });
+        html += '</div></div>';
+      }
       html += '<div class="reveal">';
       (r.hands || []).forEach(function (h) {
         html += '<div><div class="who">' + escapeHtml(h.name) + ' · ' + h.handName + '</div><div style="display:flex;gap:3px;justify-content:center">';
