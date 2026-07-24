@@ -213,7 +213,8 @@
       var c = state.community[i];
       communityEl.appendChild(c ? cardEl(c, true) : cardEl(null, false, true));
     }
-    potEl.textContent = '底池 ' + state.pot;
+    // 底池（文字 + 视觉化筹码堆）
+    renderPot(state.pot);
 
     // 实时排名：按筹码降序算名次（仅牌局内进行中/摊牌时显示）
     var ranked = state.players.slice().sort(function (a, b) { return b.chips - a.chips; });
@@ -228,6 +229,9 @@
       seatsEl.appendChild(renderSeat(p, me, rankMap[p.id]));
     });
 
+    // 桌面筹码堆层：每个有 bet 的玩家，朝向桌子中心方向画一摞彩色筹码
+    renderChipStakes(state);
+
     // 操作条 / 房主条 / 横幅
     if (state.hostId === myId && state.stage === 'showdown') {
       hostBar.classList.remove('hidden');
@@ -241,6 +245,68 @@
       banner.classList.add('hidden');
       updateActionBar(state, me);
     }
+  }
+
+  // 渲染底池：中心筹码堆 + 数字标签
+  function renderPot(potAmount) {
+    potEl.innerHTML = '';
+    // 数字标签
+    var txt = document.createElement('div');
+    txt.className = 'pot-text';
+    txt.textContent = '底池 ' + potAmount;
+    potEl.appendChild(txt);
+    // 中心筹码堆（堆叠数量与 pot 量成正比，最少 2 最多 6）
+    if (potAmount > 0) {
+      var n = Math.max(2, Math.min(6, Math.ceil(potAmount / 30) + 1));
+      var colors = ['c-red', 'c-blue', 'c-gold', 'c-green', 'c-purple'];
+      for (var i = 0; i < n; i++) {
+        var chip = document.createElement('div');
+        chip.className = 'chip ' + colors[i % colors.length];
+        potEl.appendChild(chip);
+      }
+    }
+  }
+
+  // 渲染每个玩家下注的筹码堆（位于玩家和桌子中心连线的中段，朝向中心）
+  function renderChipStakes(state) {
+    // 移除旧层
+    var old = tableWrap.querySelector('.chip-stakes');
+    if (old) old.remove();
+    var layer = document.createElement('div');
+    layer.className = 'chip-stakes';
+    state.players.forEach(function (p) {
+      if (!p.bet || p.bet <= 0) return;
+      var px = p._x || 50, py = p._y || 50;
+      var dx = 50 - px, dy = 50 - py;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1) return;
+      var ux = dx / len, uy = dy / len;
+      // 朝向中心偏移 28%（桌面上、玩家座位和中心之间）
+      var cx = px + ux * 28;
+      var cy = py + uy * 28;
+      var stack = document.createElement('div');
+      stack.className = 'chip-stack';
+      stack.style.left = cx + '%';
+      stack.style.top = cy + '%';
+      // 金额标签
+      var amt = document.createElement('div');
+      amt.className = 'chip-amount';
+      amt.textContent = p.bet;
+      stack.appendChild(amt);
+      // 筹码个数（最少 1 最多 5，与下注量成正比）
+      var n = Math.max(1, Math.min(5, Math.ceil(p.bet / 20)));
+      var colors = ['c-red', 'c-blue', 'c-gold', 'c-green', 'c-purple'];
+      for (var i = 0; i < n; i++) {
+        var chip = document.createElement('div');
+        chip.className = 'chip ' + colors[i % colors.length];
+        stack.appendChild(chip);
+      }
+      layer.appendChild(stack);
+    });
+    // 插入到 .seats 之后（确保 z-index 在座位之上）
+    var seats = tableWrap.querySelector('.seats');
+    if (seats && seats.nextSibling) tableWrap.insertBefore(layer, seats.nextSibling);
+    else tableWrap.appendChild(layer);
   }
 
   function findMe(state) {
