@@ -123,5 +123,42 @@ function simulate(seed) {
   if (r.indexOf('OK') !== 0) console.error('    -> ' + r);
 });
 
+// ---------- SB/BB 位置 ----------
+// 校验：每手牌必须恰好有 1 个庄家、1 个小盲、1 个大盲，turn 1 人。
+//       3+ 人局：D/SB/BB 互不重叠；2 人单挑时庄兼 SB（德州规则）。
+(function () {
+  function check(n, label) {
+    var room = new E.Room({ code: 'SB' });
+    for (var i = 0; i < n; i++) room.addPlayer('p' + i, 'P' + i);
+    room.startHand();
+    var s = room.serialize('p0');
+    var d  = s.players.filter(function (p) { return p.isDealer; });
+    var sb = s.players.filter(function (p) { return p.isSB; });
+    var bb = s.players.filter(function (p) { return p.isBB; });
+    var turn = s.players.filter(function (p) { return p.isTurn; });
+    ok(n + ' 人局：庄/SB/BB 各 1 人、turn 1 人', d.length === 1 && sb.length === 1 && bb.length === 1 && turn.length === 1);
+    var noOverlap = (n >= 3)
+      ? (sb[0].id !== bb[0].id && sb[0].id !== d[0].id && bb[0].id !== d[0].id)
+      : (sb[0].id === d[0].id && bb[0].id !== d[0].id);   // 2 人单挑：庄兼 SB，BB 必是另一人
+    ok(n + ' 人局：' + (n === 2 ? '庄=SB，BB 唯一' : 'D/SB/BB 互不重叠'), noOverlap);
+    // 大盲扣 20、小盲扣 10
+    ok(n + ' 人局：小盲扣 10、大盲扣 20',
+      room.getPlayer(sb[0].id).bet === 10 && room.getPlayer(bb[0].id).bet === 20);
+  }
+  check(2, '2 人');
+  check(3, '3 人');
+  check(4, '4 人');
+  check(5, '5 人');
+  check(10, '10 人');
+  // 第二手：庄/SB/BB 全部轮转
+  var r = new E.Room({ code: 'SB2' });
+  ['A','B','C','D','E'].forEach(function (id) { r.addPlayer(id, id); });
+  r.startHand();
+  var sb1 = r.sbSeat, bb1 = r.bbSeat, d1 = r.dealerSeat;
+  r.startHand();
+  ok('第 2 手：庄/SB/BB 轮转（都 +1 mod 参与者数）',
+    r.dealerSeat !== d1 && r.sbSeat !== sb1 && r.bbSeat !== bb1);
+})();
+
 console.log('\n通过: ' + passed + '  失败: ' + failed);
 process.exit(failed ? 1 : 0);
