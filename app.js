@@ -303,10 +303,13 @@
       }
       layer.appendChild(stack);
     });
-    // 插入到 .seats 之后（确保 z-index 在座位之上）
+    // 插入到 .seats 所在容器（.table）中，作为 .seats 的兄弟节点，共享同一坐标体系。
+    // 必须用 seats 的「直接父节点」作为插入目标：否则 insertBefore 会因参考节点
+    // （.seats 的 nextSibling 是 .table 内的空白文本节点）不属于该父节点而抛
+    // NotFoundError，导致 renderTable 在 updateActionBar 之前中断、操作条永久隐藏。
     var seats = tableWrap.querySelector('.seats');
-    if (seats && seats.nextSibling) tableWrap.insertBefore(layer, seats.nextSibling);
-    else tableWrap.appendChild(layer);
+    var layerParent = (seats && seats.parentNode) ? seats.parentNode : tableWrap;
+    layerParent.appendChild(layer);
   }
 
   function findMe(state) {
