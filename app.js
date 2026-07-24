@@ -333,7 +333,7 @@
 
   function renderSeat(p, me, rank) {
     var el = document.createElement('div');
-    el.className = 'seat' + (p.isTurn ? ' turn' : '') + (p.isDealer ? ' dealer' : '') + (p.folded ? ' folded' : '') + (p.id === myId ? ' mine' : '');
+    el.className = 'seat' + (p.isTurn ? ' turn' : '') + (p.isDealer ? ' dealer' : '') + (p.isSB ? ' sb' : '') + (p.isBB ? ' bb' : '') + (p.folded ? ' folded' : '') + (p.id === myId ? ' mine' : '');
     el.style.left = p._x + '%';
     el.style.top = p._y + '%';
 
@@ -354,9 +354,14 @@
     var badges = '';
     if (p.allIn) badges += '<span class="badge allin">ALLIN</span>';
     if (!p.connected) badges += '<span class="badge off">离线</span>';
+    // 庄家 / 小盲 / 大盲 标签（一次只可能命中其中一个；庄家时同色 D 优先，SB/BB 紧跟其后）
+    var roleTags = '';
+    if (p.isDealer) roleTags += '<span class="role-tag dealer">D</span>';
+    if (p.isSB)     roleTags += '<span class="role-tag sb">SB</span>';
+    if (p.isBB)     roleTags += '<span class="role-tag bb">BB</span>';
     var rankBadge = (rank != null) ? '<span class="rank">' + rank + '</span>' : '';
     info.innerHTML =
-      '<div class="pname">' + rankBadge + escapeHtml(p.name) + badges + '</div>' +
+      '<div class="pname">' + rankBadge + escapeHtml(p.name) + roleTags + badges + '</div>' +
       '<div class="pchips">' + p.chips + ' 筹</div>' +
       (p.bet > 0 ? '<div class="paction">下注 ' + p.bet + '</div>' : '<div class="paction">' + actionText(p) + '</div>');
     el.appendChild(info);
@@ -388,36 +393,71 @@
   }
 
   function updateActionBar(state, me) {
+    // 牌局进行中（非 showdown/waiting）必须始终显示操作条，
+    // 任何玩家都能随时弃牌；非自己回合时按钮灰显 + 顶部信息区显示「等待 XX 行动」。
     if (!me || state.stage === 'showdown' || state.stage === 'waiting') {
       actionBar.classList.add('hidden'); return;
     }
-    var isMyTurn = me.isTurn && !me.folded && !me.allIn;
-    if (!isMyTurn) { actionBar.classList.add('hidden'); return; }
     actionBar.classList.remove('hidden');
     raiseBox.classList.add('hidden'); // 收起加注面板，避免误触
 
-    var toCall = state.currentBet - me.bet;
-    toCallEl.textContent = toCall > 0 ? ('需跟注 ' + toCall) : '无需跟注';
-    myChipsEl.textContent = '我的筹码 ' + me.chips;
+    var isMyTurn = me.isTurn && !me.folded && !me.allIn && me.connected;
+    var toCall = Math.max(0, state.currentBet - me.bet);
+    var canFold = !me.folded && me.connected;
+    var canCheck = isMyTurn && toCall === 0;
+    var canCall = isMyTurn && toCall > 0 && me.chips > 0;
+    var canRaise = isMyTurn && me.chips > 0 && (me.bet + me.chips) > state.currentBet;
+
+    // 顶部信息
+    if (isMyTurn) {
+      toCallEl.textContent = toCall > 0 ? ('需跟注 ' + toCall) : '轮到你：可以过牌或加注';
+    } else {
+      // 找当前轮到谁
+      var cur = null;
+      for (var i = 0; i < state.players.length; i++) {
+        if (state.players[i].isTurn) { cur = state.players[i]; break; }
+      }
+      var curName = cur ? cur.name : '...';
+      if (me.folded) toCallEl.textContent = '你已弃牌 · 等待 ' + curName + ' 行动';
+      else if (me.allIn) toCallEl.textContent = '你已全下 · 等待 ' + curName + ' 行动';
+      else toCallEl.textContent = '等待 ' + curName + ' 行动…';
+    }
+    myChipsEl.textContent = '我的筹码 ' + me.chips + (me.bet > 0 ? ' · 本轮已下 ' + me.bet : '');
+
+    // 按钮：自己回合时启用；其他玩家回合时全部 disabled（弃牌始终允许）
+    foldBtn.disabled = !canFold;
+    if (canFold && !isMyTurn) {
+      foldBtn.textContent = '弃牌（随时可）';
+    } else {
+      foldBtn.textContent = '弃牌';
+    }
 
     if (toCall === 0) {
       checkBtn.classList.remove('hidden'); callBtn.classList.add('hidden');
       checkBtn.textContent = '过牌';
+      checkBtn.disabled = !canCheck;
     } else {
       checkBtn.classList.add('hidden'); callBtn.classList.remove('hidden');
-      callBtn.textContent = '跟注 ' + Math.min(toCall, me.chips);
+      var callAmt = Math.min(toCall, me.chips);
+      callBtn.textContent = '跟注 ' + callAmt;
+      callBtn.disabled = !canCall;
+    }
+
+    raiseBtn.disabled = !canRaise;
+    if (me.chips === 0 || (me.bet + me.chips) <= state.currentBet) {
+      raiseBtn.textContent = '只能全下';
     }
 
     // 加注范围
     var minRaiseTo = state.currentBet + state.minRaise;
-    var maxRaiseTo = me.bet + me.chips; // 全下目标
+    var maxRaiseTo = me.bet + me.chips;
     if (maxRaiseTo >= minRaiseTo) {
-      raiseBtn.disabled = false;
       raiseInput.min = minRaiseTo; raiseInput.max = maxRaiseTo; raiseInput.value = minRaiseTo;
       raiseLabel.textContent = '加注到 ' + minRaiseTo;
     } else {
       // 只能全下
-      raiseBtn.disabled = (me.chips === 0);
+      raiseInput.value = maxRaiseTo;
+      raiseLabel.textContent = '加注到 ' + maxRaiseTo + '（全下）';
     }
   }
 
