@@ -247,7 +247,7 @@
     }
   }
 
-  // 渲染底池：中心筹码堆 + 数字标签
+  // 渲染底池：横向药丸 = 数字标签 + 横向筹码串（不互相遮挡）
   function renderPot(potAmount) {
     potEl.innerHTML = '';
     // 数字标签
@@ -255,15 +255,18 @@
     txt.className = 'pot-text';
     txt.textContent = '底池 ' + potAmount;
     potEl.appendChild(txt);
-    // 中心筹码堆（堆叠数量与 pot 量成正比，最少 2 最多 6）
+    // 中心筹码串（数量与 pot 量成正比，最少 2 最多 6）
     if (potAmount > 0) {
       var n = Math.max(2, Math.min(6, Math.ceil(potAmount / 30) + 1));
       var colors = ['c-red', 'c-blue', 'c-gold', 'c-green', 'c-purple'];
+      var chipsWrap = document.createElement('div');
+      chipsWrap.className = 'pot-chips';
       for (var i = 0; i < n; i++) {
         var chip = document.createElement('div');
         chip.className = 'chip ' + colors[i % colors.length];
-        potEl.appendChild(chip);
+        chipsWrap.appendChild(chip);
       }
+      potEl.appendChild(chipsWrap);
     }
   }
 
@@ -293,14 +296,17 @@
       amt.className = 'chip-amount';
       amt.textContent = p.bet;
       stack.appendChild(amt);
-      // 筹码个数（最少 1 最多 5，与下注量成正比）
+      // 横向筹码串（最少 1 最多 5，与下注量成正比），放在 .chips-row 容器里
       var n = Math.max(1, Math.min(5, Math.ceil(p.bet / 20)));
       var colors = ['c-red', 'c-blue', 'c-gold', 'c-green', 'c-purple'];
+      var chipsRow = document.createElement('div');
+      chipsRow.className = 'chips-row';
       for (var i = 0; i < n; i++) {
         var chip = document.createElement('div');
         chip.className = 'chip ' + colors[i % colors.length];
-        stack.appendChild(chip);
+        chipsRow.appendChild(chip);
       }
+      stack.appendChild(chipsRow);
       layer.appendChild(stack);
     });
     // 插入到 .seats 所在容器（.table）中，作为 .seats 的兄弟节点，共享同一坐标体系。
