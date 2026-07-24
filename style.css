@@ -195,21 +195,25 @@ input[type=text]:focus { border-color: var(--primary-2); }
 .chip-stack {
   position: absolute;
   transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: row; align-items: center; gap: 4px;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.5));
+  white-space: nowrap;
 }
 .chip-stack .chip-amount {
   font-size: 10px; font-weight: 700; color: #fff;
   text-shadow: 0 1px 2px rgba(0,0,0,.9);
   background: rgba(0,0,0,.6);
   padding: 1px 6px; border-radius: 8px;
-  white-space: nowrap;
   letter-spacing: .3px;
   line-height: 1.2;
+  order: 2;
 }
 .chip-stack .chips-row {
   display: flex; flex-direction: row; align-items: center;
+  order: 1;
+  gap: 1px;
 }
+.chip-stack .chip { order: 1; margin: 0; }
 .chip {
   width: 16px; height: 16px;
   border-radius: 50%;
@@ -367,9 +371,10 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .seat .rank { min-width: 17px; height: 17px; font-size: 10.5px; }
   .seat .role-tag { font-size: 8.5px; padding: 1px 3px; }
   .seat.turn { z-index: 5; }
-  .chip-stack { transform: translate(-50%, -50%) scale(.85); }
-  .chip-stack .chip { width: 14px; height: 14px; }
-  .chip-stack .chips-row .chip { margin: 0 -4px 0 0; border-width: 1.5px; }
+  .chip-stack { transform: translate(-50%, -50%) scale(.85); gap: 3px; }
+  .chip-stack .chip { width: 14px; height: 14px; margin: 0; }
+  .chip-stack .chips-row { gap: 1px; }
+  .chip-stack .chip-amount { font-size: 9.5px; padding: 1px 4px; }
   /* 关键修复：操作条固定在视口底部，确保不被系统导航栏遮住 */
   .action-bar {
     position: fixed;
@@ -437,9 +442,10 @@ input[type=text]:focus { border-color: var(--primary-2); }
   .seat .rank { min-width: 17px; height: 17px; font-size: 10.5px; }
   .seat .role-tag { font-size: 8.5px; padding: 1px 3px; }
   .seat.turn { z-index: 5; }
-  .chip-stack { transform: translate(-50%, -50%) scale(.8); }
-  .chip-stack .chip { width: 13px; height: 13px; }
-  .chip-stack .chips-row .chip { margin: 0 -4px 0 0; border-width: 1.5px; }
+  .chip-stack { transform: translate(-50%, -50%) scale(.8); gap: 3px; }
+  .chip-stack .chip { width: 13px; height: 13px; margin: 0; }
+  .chip-stack .chips-row { gap: 1px; }
+  .chip-stack .chip-amount { font-size: 9.5px; padding: 1px 4px; }
   /* 操作条固定在视口底部，与横屏一致 */
   .action-bar {
     position: fixed;
