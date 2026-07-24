@@ -112,6 +112,8 @@
     this.currentBet = 0;        // 本轮最高下注额
     this.minRaise = this.bigBlind;
     this.dealerSeat = -1;
+    this.sbSeat = -1;     // 小盲座位（每手轮转）
+    this.bbSeat = -1;     // 大盲座位（每手轮转）
     this.turnSeat = -1;
     this.stage = 'waiting';     // waiting|preflop|flop|turn|river|showdown
     this.hostId = null;
@@ -238,6 +240,8 @@
       sbSeat = this.nextParticipantSeat(this.dealerSeat);
       bbSeat = this.nextParticipantSeat(sbSeat);
     }
+    this.sbSeat = sbSeat;  // 记录小盲座位
+    this.bbSeat = bbSeat;  // 记录大盲座位
     var sb = this.getPlayerBySeat(sbSeat), bb = this.getPlayerBySeat(bbSeat);
     this.postBlind(sb, this.smallBlind);
     this.postBlind(bb, this.bigBlind);
@@ -482,6 +486,8 @@
           folded: p.folded, allIn: p.allIn, bet: p.bet, totalBet: p.totalBet,
           acted: p.acted, connected: p.connected, lastAction: p.lastAction,
           isDealer: p.seat === self.dealerSeat,
+          isSB: p.seat === self.sbSeat,
+          isBB: p.seat === self.bbSeat,
           isTurn: p.seat === self.turnSeat,
           hand: showHand ? p.hand.slice() : [],
           handHidden: !showHand
