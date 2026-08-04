@@ -18,7 +18,7 @@
   var waiting = $('waiting'), playerList = $('playerList'), startBtn = $('startBtn');
   var tableWrap = $('table'), seatsEl = $('seats'), communityEl = $('community'), potEl = $('pot');
   var actionBar = $('actionBar'), toCallEl = $('toCall'), myChipsEl = $('myChips');
-  var raiseBox = $('raiseBox'), raiseInput = $('raiseInput'), raiseLabel = $('raiseLabel'), allinBtn = $('allinBtn');
+  var raiseBox = $('raiseBox'), raiseInput = $('raiseInput'), raiseLabel = $('raiseLabel'), allinBtn = $('allinBtn'), raiseQuick = $('raiseQuick');
   var foldBtn = $('foldBtn'), checkBtn = $('checkBtn'), callBtn = $('callBtn'), raiseBtn = $('raiseBtn');
   var hostBar = $('hostBar'), nextHandBtn = $('nextHandBtn'), resetBtn = $('resetBtn');
   var banner = $('banner');
@@ -453,6 +453,36 @@
       raiseInput.value = maxRaiseTo;
       raiseLabel.textContent = '加注到 ' + maxRaiseTo + '（全下）';
     }
+    // 快捷整数注码：点击即选中（同步滑块与标签），无需再滑动
+    renderQuickRaise(minRaiseTo, maxRaiseTo, state.minRaise || 20);
+  }
+
+  // 根据加注范围生成一组整数快捷档位（以最小加注额为步进，最多 4 个），
+  // 超出上限的档位收敛为全下值；点击后选中该注码并高亮。
+  function renderQuickRaise(minTo, maxTo, unit) {
+    raiseQuick.innerHTML = '';
+    if (maxTo < minTo) return; // 只能全下时无档位
+    var levels = [];
+    for (var k = 0; k < 4; k++) {
+      var v = minTo + k * unit;
+      if (v >= maxTo) v = maxTo;
+      if (levels.indexOf(v) < 0) levels.push(v);
+    }
+    levels.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quick-chip';
+      b.textContent = v;
+      if (parseInt(raiseInput.value, 10) === v) b.classList.add('active');
+      b.addEventListener('click', function () {
+        raiseInput.value = v;
+        raiseLabel.textContent = '加注到 ' + v;
+        Array.prototype.forEach.call(raiseQuick.querySelectorAll('.quick-chip'), function (x) {
+          x.classList.toggle('active', x === b);
+        });
+      });
+      raiseQuick.appendChild(b);
+    });
   }
 
   function showBanner(state) {
@@ -515,7 +545,11 @@
       raiseBox.classList.add('hidden');
     }
   });
-  raiseInput.addEventListener('input', function () { raiseLabel.textContent = '加注到 ' + raiseInput.value; });
+  raiseInput.addEventListener('input', function () {
+    raiseLabel.textContent = '加注到 ' + raiseInput.value;
+    // 手动滑动后取消快捷注码高亮
+    Array.prototype.forEach.call(raiseQuick.querySelectorAll('.quick-chip'), function (x) { x.classList.remove('active'); });
+  });
   allinBtn.addEventListener('click', function () {
     var me = findMe(lastState);
     if (me) net && net.sendAction('raise', me.bet + me.chips);
