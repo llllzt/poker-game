@@ -507,6 +507,7 @@
       canStart: this.stage === 'waiting' && this.getParticipants().length >= 2,
       timeLeft: (this.stage === 'waiting' || this.stage === 'showdown' || this.turnSeat < 0)
         ? 0 : Math.max(0, Math.ceil(this.turnTime - (Date.now() - this.turnStartedAt) / 1000)),
+      turnTimeTotal: this.turnTime,
       players: this.players.map(function (p) {
         var showHand = (forPlayerId && p.id === forPlayerId) || self.stage === 'showdown';
         return {

@@ -80,7 +80,13 @@
         <div class="action-info">
           <span id="toCall">需跟注 0</span>
           <span id="myChips">筹码 0</span>
-          <span id="turnTimer"></span>
+          <span id="turnTimer" class="timer hidden">
+            <svg class="ring" viewBox="0 0 36 36">
+              <circle class="ring-bg" cx="18" cy="18" r="15.5"></circle>
+              <circle class="ring-fg" cx="18" cy="18" r="15.5"></circle>
+            </svg>
+            <span class="timer-num">60</span>
+          </span>
         </div>
         <div class="raise-box" id="raiseBox">
           <input id="raiseInput" type="range" min="0" max="0" value="0" />

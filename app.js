@@ -23,6 +23,24 @@
   var hostBar = $('hostBar'), nextHandBtn = $('nextHandBtn'), resetBtn = $('resetBtn');
   var banner = $('banner');
 
+  // ---------- 行动倒计时（本地动画驱动：SVG 圆环 + 数字，收到新 state 时重置基线） ----------
+  var RING_C = 97.4; // 2πr, r=15.5
+  var turnClock = { tl: 0, total: 60, at: 0 };
+  function renderTurnTimer() {
+    if (!turnTimerEl || turnTimerEl.classList.contains('hidden')) return;
+    var rem = Math.max(0, turnClock.tl - (Date.now() - turnClock.at) / 1000);
+    var frac = turnClock.total > 0 ? Math.min(1, rem / turnClock.total) : 0;
+    var fg = turnTimerEl.querySelector('.ring-fg'), num = turnTimerEl.querySelector('.timer-num');
+    if (fg) {
+      fg.style.strokeDashoffset = RING_C * (1 - frac);
+      fg.classList.toggle('warn', rem <= 15 && rem > 5);
+      fg.classList.toggle('danger', rem <= 5);
+    }
+    if (num) num.textContent = Math.ceil(rem);
+    if (rem <= 0) turnTimerEl.classList.add('hidden');
+  }
+  setInterval(renderTurnTimer, 200);
+
   var net = null, myId = null, myRole = null, myName = null, myCode = null;
   var lastState = null;
 
@@ -427,8 +445,18 @@
       else if (me.allIn) toCallEl.textContent = '你已全下 · 等待 ' + curName + ' 行动';
       else toCallEl.textContent = '等待 ' + curName + ' 行动…';
     }
-    // 行动倒计时（房主侧每秒广播 state，timeLeft 为剩余秒数）
-    if (turnTimerEl) turnTimerEl.textContent = (state.timeLeft > 0) ? ('⏱ ' + state.timeLeft + 's') : '';
+    // 行动倒计时：本地圆环动画（每次收到新 state 重置基线，客户端本地递减驱动动画，无需高频广播）
+    if (turnTimerEl) {
+      if (state.stage === 'waiting' || state.stage === 'showdown' || !state.timeLeft || state.timeLeft <= 0) {
+        turnTimerEl.classList.add('hidden');
+      } else {
+        turnClock.tl = state.timeLeft;
+        turnClock.total = state.turnTimeTotal || 60;
+        turnClock.at = Date.now();
+        turnTimerEl.classList.remove('hidden');
+        renderTurnTimer();
+      }
+    }
     myChipsEl.textContent = '我的筹码 ' + me.chips + (me.bet > 0 ? ' · 本轮已下 ' + me.bet : '');
 
     // 挂机/回桌按钮（可随时挂机，回桌后恢复）

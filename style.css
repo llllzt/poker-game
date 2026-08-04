@@ -297,7 +297,18 @@ input[type=text]:focus { border-color: var(--primary-2); }
 .action-info { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); min-width: 220px; }
 .action-info > span:first-child { color: var(--text); font-weight: 600; margin-bottom: 2px; }
 .action-info > span:nth-child(2) { color: var(--gold); font-variant-numeric: tabular-nums; }
-.action-info #turnTimer { color: var(--warn); font-variant-numeric: tabular-nums; font-size: 12px; min-height: 12px; }
+.action-info .timer { display: flex; align-items: center; gap: 5px; min-height: 20px; }
+.action-info .timer.hidden { display: none !important; }
+.action-info .timer .ring { width: 20px; height: 20px; transform: rotate(-90deg); flex: none; }
+.action-info .timer .ring-bg { fill: none; stroke: rgba(255,255,255,.14); stroke-width: 3.2; }
+.action-info .timer .ring-fg {
+  fill: none; stroke: var(--primary-2); stroke-width: 3.2; stroke-linecap: round;
+  stroke-dasharray: 97.4; transition: stroke-dashoffset .25s linear, stroke .25s ease;
+}
+.action-info .timer .ring-fg.warn { stroke: var(--warn); }
+.action-info .timer .ring-fg.danger { stroke: var(--danger); animation: timerPulse .55s ease-in-out infinite; }
+.action-info .timer .timer-num { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--text); min-width: 20px; font-weight: 600; }
+@keyframes timerPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 .raise-box { flex: 1 1 200px; margin: 0; min-width: 140px; }
 .raise-box input[type=range] { width: 100%; accent-color: var(--primary-2); }
 .raise-val { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 13px; }
