@@ -60,9 +60,19 @@
       saveSession({ code: '', playerId: myId, role: 'host', name: myName, roomName: rn });
       startNet({ roomName: rn });
     } else {
-      // P2P 回退：本地生成房间码
-      myCode = genCode();
-      saveSession({ code: myCode, playerId: myId, role: 'host', name: myName });
+      // P2P 回退：若 session 中已有本机创建的房主房间（刷新/误关后回来），
+      // 复用原房间码与 playerId，net 层会从 localStorage 快照自动恢复牌局；
+      // 否则本地生成新房间码。
+      var sess = loadSession();
+      if (sess && sess.role === 'host' && sess.code) {
+        myCode = sess.code;
+        myId = sess.playerId;
+        saveSession({ code: myCode, playerId: myId, role: 'host', name: myName });
+        lobbyMsg.textContent = '已恢复房间 ' + myCode + '，牌局将自动续上';
+      } else {
+        myCode = genCode();
+        saveSession({ code: myCode, playerId: myId, role: 'host', name: myName });
+      }
       startNet({});
     }
   });

@@ -496,6 +496,61 @@
     };
   };
 
+  // ---------- 房主容错：完整快照（含所有手牌与牌堆，用于备份/恢复/接管） ----------
+  Room.prototype.serializeFull = function () {
+    var self = this;
+    return {
+      v: 1,
+      code: this.code, name: this.name, hostId: this.hostId,
+      startingChips: this.startingChips, smallBlind: this.smallBlind, bigBlind: this.bigBlind,
+      stage: this.stage, community: this.community.slice(), pot: this.pot,
+      currentBet: this.currentBet, minRaise: this.minRaise,
+      dealerSeat: this.dealerSeat, sbSeat: this.sbSeat, bbSeat: this.bbSeat, turnSeat: this.turnSeat,
+      handNumber: this.handNumber, message: this.message, lastResults: this.lastResults,
+      deck: this.deck.map(function (c) { return { r: c.r, s: c.s }; }),
+      players: this.players.map(function (p) {
+        return {
+          id: p.id, name: p.name, seat: p.seat, chips: p.chips, bet: p.bet, totalBet: p.totalBet,
+          folded: p.folded, allIn: p.allIn, acted: p.acted, connected: p.connected,
+          lastAction: p.lastAction, hand: p.hand.map(function (c) { return { r: c.r, s: c.s }; })
+        };
+      })
+    };
+  };
+
+  // 从完整快照重建房间（房主刷新恢复 / 客户端接管）
+  Room.fromSnapshot = function (snap) {
+    var room = new Room({
+      code: snap.code || '', startingChips: snap.startingChips || 1000,
+      smallBlind: snap.smallBlind || 10, bigBlind: snap.bigBlind || 20
+    });
+    room.name = snap.name || '';
+    room.players = (snap.players || []).map(function (p) {
+      return {
+        id: p.id, name: p.name, chips: p.chips, seat: p.seat,
+        folded: !!p.folded, allIn: !!p.allIn,
+        hand: (p.hand || []).map(function (c) { return { r: c.r, s: c.s }; }),
+        bet: p.bet || 0, totalBet: p.totalBet || 0, acted: !!p.acted,
+        connected: p.connected !== false, lastAction: p.lastAction || null
+      };
+    });
+    room.deck = (snap.deck || []).map(function (c) { return { r: c.r, s: c.s }; });
+    room.community = (snap.community || []).map(function (c) { return { r: c.r, s: c.s }; });
+    room.pot = snap.pot || 0;
+    room.currentBet = snap.currentBet || 0;
+    room.minRaise = snap.minRaise || room.bigBlind;
+    room.dealerSeat = (snap.dealerSeat != null) ? snap.dealerSeat : -1;
+    room.sbSeat = (snap.sbSeat != null) ? snap.sbSeat : -1;
+    room.bbSeat = (snap.bbSeat != null) ? snap.bbSeat : -1;
+    room.turnSeat = (snap.turnSeat != null) ? snap.turnSeat : -1;
+    room.stage = snap.stage || 'waiting';
+    room.hostId = snap.hostId || null;
+    room.handNumber = snap.handNumber || 0;
+    room.message = snap.message || '';
+    room.lastResults = snap.lastResults || null;
+    return room;
+  };
+
   var API = {
     SUITS: SUITS, RANKS: RANKS, CAT: CAT, CAT_NAME: CAT_NAME,
     rankLabel: rankLabel, cardLabel: cardLabel, isRed: isRed,

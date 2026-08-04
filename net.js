@@ -4,6 +4,14 @@
  *  - 探测失败（如来自 CloudStudio 等纯静态托管）→ 回退 P2P 模式（PeerJS，房主浏览器为权威节点）。
  * 对外暴露统一 API：connect(opts) -> { mode, sendAction, startGame, nextHand, resetChips, leave, destroy }
  *   opts: { role:'host'|'client', code, name, playerId, onState, onError, onStatus, onWelcome }
+ *
+ * P2P 房主容错（v2）：
+ *  - 房主每次广播前把完整牌局快照(serializeFull)写入 localStorage；
+ *  - 房主刷新/误关浏览器后重进：用同一房间码 + 同一 playerId 建房，自动从快照恢复牌局；
+ *  - 客户端断线后每 2s 自动重连（host id 固定为 texas_<code>）；
+ *  - 房主 15s 未回来，客户端尝试以固定 id 接管房间（PeerJS id 先到先得，天然解决抢注冲突），
+ *    接管者用本地快照重建引擎继续发牌，其余客户端自动连上新房主；
+ *  - 原房主回来发现 id 被占用 → 自动降级为普通玩家，坐回原座位。
  */
 (function (global) {
   'use strict';
@@ -12,41 +20,61 @@
 
   function genId() { return 'p_' + Math.random().toString(36).slice(2, 10); }
   function peerIdFor(code) { return 'texas_' + code; }
+  function backupKey(code) { return 'th_snap_' + code; }
 
-  // ---------------- P2P 模式（PeerJS，房主权威） ----------------
+  function loadBackup(code) {
+    try {
+      var b = localStorage.getItem(backupKey(code));
+      if (b) {
+        var s = JSON.parse(b);
+        if (s && s.v === 1 && s.code === code) return s;
+      }
+    } catch (e) { }
+    return null;
+  }
+  function storeBackupRaw(code, full) {
+    try { if (full) localStorage.setItem(backupKey(code), JSON.stringify(full)); } catch (e) { }
+  }
+  function clearBackup(code) {
+    try { localStorage.removeItem(backupKey(code)); } catch (e) { }
+  }
+
+  // ---------------- P2P 模式（PeerJS，房主权威 + 容错） ----------------
   function startP2P(opts, api) {
     var code = (opts.code || '').toUpperCase();
     var name = opts.name || '玩家';
     var playerId = opts.playerId || genId();
     api.mode = 'p2p';
+    api.playerId = playerId;
 
-    if (opts.role === 'host') {
-      var room = new PokerEngine.Room({ code: code, startingChips: 1000, smallBlind: 10, bigBlind: 20 });
-      room.addPlayer(playerId, name);                 // 房主 id 与前端 myId 保持一致
-      var conns = {};
-      var peer = new Peer(peerIdFor(code), { debug: 0 });
-      api.playerId = playerId;
+    // ---------- 主机角色（含刷新恢复 / 客户端接管两入口） ----------
+    function startAsHost(peer) {
+      var room = null, conns = {};
+      var snap = loadBackup(code);
+      if (snap) {
+        try {
+          room = PokerEngine.Room.fromSnapshot(snap);
+          var m = room.getPlayer(playerId);
+          if (m) { m.connected = true; if (name) m.name = name; }
+          else room.addPlayer(playerId, name, true);
+          if (api.onStatus) api.onStatus('已恢复上一局，房主身份延续');
+        } catch (e) { room = null; }
+      }
+      if (!room) {
+        room = new PokerEngine.Room({ code: code, startingChips: 1000, smallBlind: 10, bigBlind: 20 });
+        room.addPlayer(playerId, name);
+      }
+      room.hostId = playerId; // 现在的房主一定是自己
 
       function broadcast() {
+        storeBackupRaw(code, room.serializeFull());
+        var full = room.serializeFull();
         Object.keys(conns).forEach(function (pid) {
           var c = conns[pid];
-          if (c && c.open) c.send({ type: 'state', state: room.serialize(pid) });
+          if (c && c.open) c.send({ type: 'state', state: room.serialize(pid), full: full });
         });
         if (api.onState) api.onState(room.serialize(playerId));
       }
-      peer.on('open', function () { if (api.onStatus) api.onStatus('房主已就绪 · 等待加入'); broadcast(); });
-      peer.on('connection', function (conn) {
-        conn.on('data', function (msg) { handle(conn, msg); });
-        conn.on('close', function () {
-          var pid = conn._pid;
-          if (pid) { var p = room.getPlayer(pid); if (p) p.connected = false; delete conns[pid]; broadcast(); }
-        });
-        conn.on('error', function () { });
-      });
-      peer.on('error', function (err) {
-        if (err && err.type === 'unavailable-id') { if (api.onError) api.onError('房间码冲突，请返回重试'); }
-        else { if (api.onError) api.onError('房主连接异常：' + (err && err.type || '未知')); }
-      });
 
       function handle(conn, msg) {
         if (!msg || !msg.type) return;
@@ -54,14 +82,14 @@
           var pid = msg.playerId && room.getPlayer(msg.playerId) ? msg.playerId : genId();
           var p = room.addPlayer(pid, msg.name || '玩家', true);
           conns[pid] = conn; conn._pid = pid;
-          conn.send({ type: 'welcome', playerId: pid, state: room.serialize(pid) });
+          conn.send({ type: 'welcome', playerId: pid, state: room.serialize(pid), full: room.serializeFull() });
           broadcast();
         } else if (msg.type === 'reconnect') {
           var ex = room.getPlayer(msg.playerId);
           if (ex) {
             ex.connected = true; if (msg.name) ex.name = msg.name;
             conns[msg.playerId] = conn; conn._pid = msg.playerId;
-            conn.send({ type: 'welcome', playerId: msg.playerId, state: room.serialize(msg.playerId) });
+            conn.send({ type: 'welcome', playerId: msg.playerId, state: room.serialize(msg.playerId), full: room.serializeFull() });
             broadcast();
           } else { handle(conn, { type: 'join', name: msg.name, playerId: msg.playerId }); }
         } else if (msg.type === 'action') {
@@ -76,42 +104,117 @@
         }
       }
 
+      peer.on('open', function () {
+        if (api.onStatus) api.onStatus('房主已就绪 · 等待加入');
+        broadcast();
+      });
+      peer.on('connection', function (conn) {
+        conn.on('data', function (msg) { handle(conn, msg); });
+        conn.on('close', function () {
+          var pid = conn._pid;
+          if (pid) { var p = room.getPlayer(pid); if (p) p.connected = false; delete conns[pid]; broadcast(); }
+        });
+        conn.on('error', function () { });
+      });
+      peer.on('error', function (err) {
+        if (err && err.type === 'unavailable-id') {
+          // 房间已被他人接管（或自己刚恢复但 id 被别人先抢）→ 降级为普通玩家加入
+          if (api.onStatus) api.onStatus('房间已被接管，以玩家身份加入');
+          startAsClient();
+        } else if (api.onError) {
+          api.onError('房主连接异常：' + (err && err.type || '未知'));
+        }
+      });
+
+      api.playerId = playerId;
       api.startGame = function () { if (!room.startHand()) { if (api.onError) api.onError('人数不足，至少需要 2 人'); } else broadcast(); };
       api.nextHand = function () { if (!room.startHand()) { if (api.onError) api.onError('人数不足，无法开始下一手（可重置筹码）'); } else broadcast(); };
       api.resetChips = function () { room.resetChips(); broadcast(); };
       api.sendAction = function (t, a) { var r = room.doAction(playerId, t, a); if (r && r.error && api.onError) api.onError(r.error); broadcast(); };
-      api.rename = function (name) { if (room.renamePlayer(playerId, name)) broadcast(); };
+      api.rename = function (nm) { if (room.renamePlayer(playerId, nm)) broadcast(); };
       api.leave = function () { };
-      api.destroy = function () { try { peer.destroy(); } catch (e) { } };
-    } else {
-      var peer2 = new Peer();
-      var conn = null;
-      peer2.on('open', function () {
-        conn = peer2.connect(peerIdFor(code), { reliable: true });
-        conn.on('open', function () {
-          if (api.onStatus) api.onStatus('已连接房主');
-          conn.send({ type: 'join', name: name, playerId: playerId });
+      api.destroy = function () { clearBackup(code); try { peer.destroy(); } catch (e) { } };
+    }
+
+    // ---------- 客户端角色（断线重连 + 超时接管） ----------
+    function startAsClient() {
+      var peer2 = null, conn = null, retryTimer = null, upgradeTimer = null;
+      var firstJoin = true;
+
+      function clearTimers() {
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+        if (upgradeTimer) { clearTimeout(upgradeTimer); upgradeTimer = null; }
+      }
+
+      function scheduleReconnect(msg) {
+        if (api.onStatus) api.onStatus(msg || '与房主断开，自动重连…');
+        clearTimers();
+        retryTimer = setTimeout(connectOnce, 2000);
+        // 15s 仍未连上 → 尝试接管房间
+        upgradeTimer = setTimeout(tryUpgrade, 15000);
+      }
+
+      function onData(msg) {
+        if (!msg || !msg.type) return;
+        if (msg.type === 'state') {
+          storeBackupRaw(code, msg.full);
+          if (api.onState) api.onState(msg.state);
+        } else if (msg.type === 'welcome') {
+          api.playerId = msg.playerId; if (api.onWelcome) api.onWelcome(msg.playerId);
+          storeBackupRaw(code, msg.full);
+          if (api.onState) api.onState(msg.state);
+        } else if (msg.type === 'error') { if (api.onError) api.onError(msg.msg); }
+      }
+
+      function connectOnce() {
+        if (peer2 && !peer2.destroyed) { try { peer2.destroy(); } catch (e) { } }
+        peer2 = new Peer();
+        peer2.on('open', function () {
+          conn = peer2.connect(peerIdFor(code), { reliable: true });
+          conn.on('open', function () {
+            if (api.onStatus) api.onStatus('已连接房主');
+            if (firstJoin) { firstJoin = false; conn.send({ type: 'join', name: name, playerId: playerId }); }
+            else conn.send({ type: 'reconnect', name: name, playerId: playerId });
+          });
+          conn.on('data', onData);
+          conn.on('close', function () { scheduleReconnect(); });
+          conn.on('error', function () { scheduleReconnect(); });
         });
-        conn.on('data', function (msg) {
-          if (!msg || !msg.type) return;
-          if (msg.type === 'state') { if (api.onState) api.onState(msg.state); }
-          else if (msg.type === 'welcome') {
-            api.playerId = msg.playerId; if (api.onWelcome) api.onWelcome(msg.playerId);
-            if (api.onState) api.onState(msg.state);
-          } else if (msg.type === 'error') { if (api.onError) api.onError(msg.msg); }
+        peer2.on('error', function () { scheduleReconnect('无法连接房间，重试中…'); });
+      }
+
+      function tryUpgrade() {
+        if (conn && conn.open) return;
+        if (api.onStatus) api.onStatus('房主长时间离线，尝试接管房间…');
+        var p2 = new Peer(peerIdFor(code), { debug: 0 });
+        var settled = false;
+        p2.on('open', function () {
+          if (settled) return; settled = true;
+          try { if (peer2 && !peer2.destroyed) peer2.destroy(); } catch (e) { }
+          clearTimers();
+          if (api.onStatus) api.onStatus('由你接管房间，继续游戏');
+          startAsHost(p2); // 抢到固定 id → 直接用这个 peer 当主机
         });
-        conn.on('close', function () { if (api.onStatus) api.onStatus('与房主断开，重连中…'); });
-        conn.on('error', function () { if (api.onError) api.onError('与房主的连接中断'); });
-      });
-      peer2.on('error', function () { if (api.onError) api.onError('无法连接房间（房间码有误或房主离线）'); });
+        p2.on('error', function () {
+          if (settled) return; settled = true;
+          try { p2.destroy(); } catch (e) { }
+          scheduleReconnect('房主已恢复连接…');
+        });
+      }
+
+      api.playerId = playerId;
       api.sendAction = function (t, a) { if (conn && conn.open) conn.send({ type: 'action', playerId: api.playerId, action: t, amount: a }); };
-      api.rename = function (name) { if (conn && conn.open) conn.send({ type: 'rename', playerId: api.playerId, name: name }); };
+      api.rename = function (nm) { if (conn && conn.open) conn.send({ type: 'rename', playerId: api.playerId, name: nm }); };
       api.startGame = function () { };
       api.nextHand = function () { };
       api.resetChips = function () { };
       api.leave = function () { if (conn && conn.open) conn.send({ type: 'leave', playerId: api.playerId }); };
-      api.destroy = function () { try { peer2.destroy(); } catch (e) { } };
+      api.destroy = function () { clearTimers(); try { if (peer2) peer2.destroy(); } catch (e) { } };
+      connectOnce();
     }
+
+    if (opts.role === 'host') startAsHost(new Peer(peerIdFor(code), { debug: 0 }));
+    else startAsClient();
   }
 
   // ---------------- 服务器模式（SSE + fetch，局域网权威） ----------------
