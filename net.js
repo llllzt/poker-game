@@ -79,12 +79,15 @@
       function handle(conn, msg) {
         if (!msg || !msg.type) return;
         if (msg.type === 'join') {
-          // 合并：等待阶段同名离线玩家视为同一人换设备重连，复用其 id（避免多设备/标签累积重复条目）
+          // 合并：等待阶段直接复用同名玩家 id；牌局进行中只在原玩家已无活跃连接
+          // （僵尸/卡死/断网）时让新连接接管，避免多设备/标签累积重复条目。
+          // 真玩家 + 真玩家同名（罕见）时保留为新条目，避免误抢他人牌局。
           var dup = null;
-          if (room.stage === 'waiting' && msg.name) {
+          if (msg.name) {
             for (var i = 0; i < room.players.length; i++) {
               var pp = room.players[i];
-              if (pp.name === msg.name && !pp.connected) { dup = pp; break; }
+              if (pp.name !== msg.name) continue;
+              if (room.stage === 'waiting' || !conns[pp.id]) { dup = pp; break; }
             }
           }
           if (dup) {

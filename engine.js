@@ -120,7 +120,7 @@
     this.startingChips = opts.startingChips || 1000;
     this.smallBlind = opts.smallBlind || 10;
     this.bigBlind = opts.bigBlind || 20;
-    this.turnTime = opts.turnTime || 30; // 每人行动限时（秒），超时由房主自动托管
+    this.turnTime = opts.turnTime || 60; // 每人行动限时（秒），超时由房主自动托管
     this.turnStartedAt = 0;              // 当前行动者开始行动的时间戳（ms）
     this.code = opts.code || '';
     this.name = opts.name || ''; // 房间名（目录展示用）
@@ -552,7 +552,7 @@
     var room = new Room({
       code: snap.code || '', startingChips: snap.startingChips || 1000,
       smallBlind: snap.smallBlind || 10, bigBlind: snap.bigBlind || 20,
-      turnTime: snap.turnTime || 30
+      turnTime: snap.turnTime || 60
     });
     room.name = snap.name || '';
     room.players = (snap.players || []).map(function (p) {
