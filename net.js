@@ -79,11 +79,26 @@
       function handle(conn, msg) {
         if (!msg || !msg.type) return;
         if (msg.type === 'join') {
-          var pid = msg.playerId && room.getPlayer(msg.playerId) ? msg.playerId : genId();
-          var p = room.addPlayer(pid, msg.name || '玩家', true);
-          conns[pid] = conn; conn._pid = pid;
-          conn.send({ type: 'welcome', playerId: pid, state: room.serialize(pid), full: room.serializeFull() });
-          broadcast();
+          // 合并：等待阶段同名离线玩家视为同一人换设备重连，复用其 id（避免多设备/标签累积重复条目）
+          var dup = null;
+          if (room.stage === 'waiting' && msg.name) {
+            for (var i = 0; i < room.players.length; i++) {
+              var pp = room.players[i];
+              if (pp.name === msg.name && !pp.connected) { dup = pp; break; }
+            }
+          }
+          if (dup) {
+            dup.connected = true; if (msg.name) dup.name = msg.name;
+            conns[dup.id] = conn; conn._pid = dup.id;
+            conn.send({ type: 'welcome', playerId: dup.id, state: room.serialize(dup.id), full: room.serializeFull() });
+            broadcast();
+          } else {
+            var pid = msg.playerId && room.getPlayer(msg.playerId) ? msg.playerId : genId();
+            var p = room.addPlayer(pid, msg.name || '玩家', true);
+            conns[pid] = conn; conn._pid = pid;
+            conn.send({ type: 'welcome', playerId: pid, state: room.serialize(pid), full: room.serializeFull() });
+            broadcast();
+          }
         } else if (msg.type === 'reconnect') {
           var ex = room.getPlayer(msg.playerId);
           if (ex) {
@@ -144,9 +159,10 @@
         conn.on('error', function () { });
       });
       peer.on('error', function (err) {
-        if (err && err.type === 'unavailable-id') {
-          // 房间已被他人接管（或自己刚恢复但 id 被别人先抢）→ 降级为普通玩家加入
-          if (api.onStatus) api.onStatus('房间已被接管，以玩家身份加入');
+        // 房间 id 被占/不可达/网络异常 → 一律降级为普通玩家加入，避免卡死
+        if (err && (err.type === 'unavailable-id' || err.type === 'peer-unavailable' || err.type === 'invalid-id' || err.type === 'network')) {
+          if (api.onStatus) api.onStatus('房间已被接管或房主不可达，以玩家身份加入');
+          try { peer.destroy(); } catch (e) { }
           startAsClient();
         } else if (api.onError) {
           api.onError('房主连接异常：' + (err && err.type || '未知'));

@@ -173,8 +173,20 @@ const server = http.createServer(function (req, res) {
         p.name = body.name || p.name;
         p.connected = true;
       } else {
-        pid = pid || ('s_' + crypto.randomBytes(6).toString('hex'));
-        p = room.addPlayer(pid, body.name || '玩家', true);
+        // 合并：等待阶段同名离线玩家视为同一人换设备，复用其 id（避免多设备累积重复条目）
+        if (room.stage === 'waiting' && body.name) {
+          for (let i = 0; i < room.players.length; i++) {
+            const pp = room.players[i];
+            if (pp.name === body.name && !pp.connected) { pid = pp.id; p = pp; break; }
+          }
+        }
+        if (!p) {
+          pid = pid || ('s_' + crypto.randomBytes(6).toString('hex'));
+          p = room.addPlayer(pid, body.name || '玩家', true);
+        } else {
+          p.name = body.name || p.name;
+          p.connected = true;
+        }
       }
       sendJson(res, 200, { playerId: pid, isHost: (room.hostId === pid), state: room.serialize(pid) });
       pushRoom(room);
