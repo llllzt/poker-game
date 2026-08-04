@@ -65,6 +65,30 @@ function pushRoom(room) {
   });
 }
 
+// 超时托管 / 挂机自动弃牌（与 P2P 房主侧逻辑一致）：每秒检查所有房间
+setInterval(function () {
+  rooms.forEach(function (room) {
+    if (room.stage === 'waiting' || room.stage === 'showdown') return;
+    const p = room.getPlayerBySeat(room.turnSeat);
+    if (!p || p.folded || p.allIn || !p.connected) return;
+    let acted = false;
+    if (p.sitOut) {
+      room.doAction(p.id, 'fold');
+      room.message = p.name + ' 挂机自动弃牌';
+      acted = true;
+    } else if (Date.now() - room.turnStartedAt > room.turnTime * 1000) {
+      const toCall = Math.max(0, room.currentBet - p.bet);
+      const action = toCall <= 0 ? 'check' : (p.chips >= toCall ? 'call' : 'fold');
+      room.doAction(p.id, action, undefined);
+      p.sitOut = true; // 超时一次即进入托管，直到点「回桌」
+      const label = action === 'check' ? '过牌' : (action === 'call' ? '跟注' : '弃牌');
+      room.message = p.name + ' 超时自动' + label + '（已挂机）';
+      acted = true;
+    }
+    if (acted) pushRoom(room);
+  });
+}, 1000);
+
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
@@ -200,9 +224,22 @@ const server = http.createServer(function (req, res) {
     return;
   }
 
-  // 改名：仅本人可改自己的昵称
-  if (pathname === '/api/rename' && req.method === 'POST') {
+  // 挂机/回桌：标记 sitOut，轮到该玩家时自动弃牌，直到回桌
+  if (pathname === '/api/sitout' && req.method === 'POST') {
     readBody(req, function (body) {
+      const room = rooms.get((body.code || '').toUpperCase());
+      if (!room) return sendJson(res, 404, { error: '房间不存在' });
+      const p = room.getPlayer(body.playerId);
+      if (!p) return sendJson(res, 404, { error: '玩家不存在' });
+      p.sitOut = !!body.sitOut;
+      sendJson(res, 200, { ok: true });
+      pushRoom(room);
+    });
+    return;
+  }
+
+  // 改名：仅本人可改自己的昵称
+  if (pathname === '/api/rename' && req.method === 'POST') {    readBody(req, function (body) {
       const room = rooms.get((body.code || '').toUpperCase());
       if (!room) return sendJson(res, 404, { error: '房间不存在' });
       const p = room.getPlayer(body.playerId);

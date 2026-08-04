@@ -96,6 +96,23 @@
     return best;
   }
   function handName(h) { return CAT_NAME[h.cat]; }
+  // 详细牌型名：如「三条 A」「两对 A-K」「同花顺」「葫芦 Q 满 5」等，用于摊牌明细
+  function handDetail(h) {
+    if (!h) return '';
+    var t = h.tb || [];
+    function r(v) { return rankLabel(v); }
+    switch (h.cat) {
+      case CAT.STRAIGHT_FLUSH: return '同花顺' + (t[0] ? '（' + r(t[0]) + ' 高）' : '');
+      case CAT.QUADS: return '四条 ' + r(t[0]);
+      case CAT.FULL_HOUSE: return '葫芦 ' + r(t[0]) + ' 满 ' + r(t[1]);
+      case CAT.FLUSH: return '同花（' + r(t[0]) + ' 高）';
+      case CAT.STRAIGHT: return '顺子（' + r(t[0]) + ' 高）';
+      case CAT.TRIPS: return '三条 ' + r(t[0]);
+      case CAT.TWO_PAIR: return '两对 ' + r(t[0]) + '-' + r(t[1]);
+      case CAT.PAIR: return '一对 ' + r(t[0]);
+      default: return '高牌 ' + r(t[0]);
+    }
+  }
 
   // ---------- 牌局（单桌） ----------
   function Room(opts) {
@@ -103,6 +120,8 @@
     this.startingChips = opts.startingChips || 1000;
     this.smallBlind = opts.smallBlind || 10;
     this.bigBlind = opts.bigBlind || 20;
+    this.turnTime = opts.turnTime || 30; // 每人行动限时（秒），超时由房主自动托管
+    this.turnStartedAt = 0;              // 当前行动者开始行动的时间戳（ms）
     this.code = opts.code || '';
     this.name = opts.name || ''; // 房间名（目录展示用）
     this.players = [];          // {id,name,chips,seat,folded,allIn,hand,bet,totalBet,acted,connected,lastAction}
@@ -132,7 +151,8 @@
     var p = {
       id: id, name: name || '玩家', chips: this.startingChips,
       seat: this.players.length, folded: false, allIn: false, hand: [],
-      bet: 0, totalBet: 0, acted: false, connected: (connected !== false), lastAction: null
+      bet: 0, totalBet: 0, acted: false, connected: (connected !== false), lastAction: null,
+      sitOut: false   // 挂机/离桌：轮到即自动弃牌，回桌后恢复
     };
     this.players.push(p);
     if (!this.hostId) this.hostId = id;
@@ -257,6 +277,7 @@
       idx = this.nextParticipantSeat(bbSeat);
     }
     this.turnSeat = idx;
+    this.turnStartedAt = Date.now();
     this.skipIfCannotAct();
   };
 
@@ -344,6 +365,7 @@
     var idx = this.nextActorSeat(this.turnSeat);
     if (idx < 0) { this.endBettingRound(); return; }
     this.turnSeat = idx;
+    this.turnStartedAt = Date.now();
     var p = this.getPlayerBySeat(idx);
     if (p && !p.connected) {
       p.folded = true; p.acted = true; p.lastAction = 'fold';
@@ -445,7 +467,11 @@
     this.lastResults = {
       type: 'showdown', community: this.community.slice(), pots: results,
       hands: evals.map(function (e) {
-        return { id: e.p.id, name: e.p.name, cards: e.p.hand.slice(), handName: handName(e.h), cat: e.h.cat };
+        return {
+          id: e.p.id, name: e.p.name, cards: e.p.hand.slice(),
+          handName: handName(e.h), detail: handDetail(e.h), cat: e.h.cat,
+          bet: e.p.totalBet // 整手投入（结算复盘用）
+        };
       })
     };
     if (results.length) {
@@ -479,12 +505,14 @@
       lastResults: this.lastResults,
       hostId: this.hostId,
       canStart: this.stage === 'waiting' && this.getParticipants().length >= 2,
+      timeLeft: (this.stage === 'waiting' || this.stage === 'showdown' || this.turnSeat < 0)
+        ? 0 : Math.max(0, Math.ceil(this.turnTime - (Date.now() - this.turnStartedAt) / 1000)),
       players: this.players.map(function (p) {
         var showHand = (forPlayerId && p.id === forPlayerId) || self.stage === 'showdown';
         return {
           id: p.id, name: p.name, seat: p.seat, chips: p.chips,
           folded: p.folded, allIn: p.allIn, bet: p.bet, totalBet: p.totalBet,
-          acted: p.acted, connected: p.connected, lastAction: p.lastAction,
+          acted: p.acted, connected: p.connected, lastAction: p.lastAction, sitOut: !!p.sitOut,
           isDealer: p.seat === self.dealerSeat,
           isSB: p.seat === self.sbSeat,
           isBB: p.seat === self.bbSeat,
@@ -503,6 +531,7 @@
       v: 1,
       code: this.code, name: this.name, hostId: this.hostId,
       startingChips: this.startingChips, smallBlind: this.smallBlind, bigBlind: this.bigBlind,
+      turnTime: this.turnTime,
       stage: this.stage, community: this.community.slice(), pot: this.pot,
       currentBet: this.currentBet, minRaise: this.minRaise,
       dealerSeat: this.dealerSeat, sbSeat: this.sbSeat, bbSeat: this.bbSeat, turnSeat: this.turnSeat,
@@ -511,7 +540,7 @@
       players: this.players.map(function (p) {
         return {
           id: p.id, name: p.name, seat: p.seat, chips: p.chips, bet: p.bet, totalBet: p.totalBet,
-          folded: p.folded, allIn: p.allIn, acted: p.acted, connected: p.connected,
+          folded: p.folded, allIn: p.allIn, acted: p.acted, connected: p.connected, sitOut: !!p.sitOut,
           lastAction: p.lastAction, hand: p.hand.map(function (c) { return { r: c.r, s: c.s }; })
         };
       })
@@ -522,7 +551,8 @@
   Room.fromSnapshot = function (snap) {
     var room = new Room({
       code: snap.code || '', startingChips: snap.startingChips || 1000,
-      smallBlind: snap.smallBlind || 10, bigBlind: snap.bigBlind || 20
+      smallBlind: snap.smallBlind || 10, bigBlind: snap.bigBlind || 20,
+      turnTime: snap.turnTime || 30
     });
     room.name = snap.name || '';
     room.players = (snap.players || []).map(function (p) {
@@ -531,7 +561,8 @@
         folded: !!p.folded, allIn: !!p.allIn,
         hand: (p.hand || []).map(function (c) { return { r: c.r, s: c.s }; }),
         bet: p.bet || 0, totalBet: p.totalBet || 0, acted: !!p.acted,
-        connected: p.connected !== false, lastAction: p.lastAction || null
+        connected: p.connected !== false, lastAction: p.lastAction || null,
+        sitOut: !!p.sitOut
       };
     });
     room.deck = (snap.deck || []).map(function (c) { return { r: c.r, s: c.s }; });
@@ -548,6 +579,7 @@
     room.handNumber = snap.handNumber || 0;
     room.message = snap.message || '';
     room.lastResults = snap.lastResults || null;
+    room.turnStartedAt = Date.now(); // 恢复后重新计时，避免立即超时托管
     return room;
   };
 

@@ -99,10 +99,37 @@
         } else if (msg.type === 'rename') {
           room.renamePlayer(msg.playerId, msg.name);
           broadcast();
+        } else if (msg.type === 'sitout') {
+          var sp = room.getPlayer(msg.playerId);
+          if (sp) { sp.sitOut = !!msg.sitOut; broadcast(); }
         } else if (msg.type === 'leave') {
           room.removePlayer(msg.playerId); delete conns[msg.playerId]; broadcast();
         }
       }
+
+      // 超时托管 / 挂机自动弃牌：每秒检查当前行动者
+      var turnTimer = setInterval(function () {
+        if (!room || room.stage === 'waiting' || room.stage === 'showdown') return;
+        var p = room.getPlayerBySeat(room.turnSeat);
+        if (!p || p.folded || p.allIn || !p.connected) return;
+        var acted = false;
+        if (p.sitOut) {
+          // 挂机：轮到即自动弃牌，不卡局
+          room.doAction(p.id, 'fold');
+          room.message = p.name + ' 挂机自动弃牌';
+          acted = true;
+        } else if (Date.now() - room.turnStartedAt > room.turnTime * 1000) {
+          // 超时：免费过牌 / 能跟则跟 / 否则弃牌，并进入托管
+          var toCall = Math.max(0, room.currentBet - p.bet);
+          var action = toCall <= 0 ? 'check' : (p.chips >= toCall ? 'call' : 'fold');
+          room.doAction(p.id, action, undefined);
+          p.sitOut = true; // 之后每轮自动弃牌，直到玩家点「回桌」
+          var label = action === 'check' ? '过牌' : (action === 'call' ? '跟注' : '弃牌');
+          room.message = p.name + ' 超时自动' + label + '（已挂机）';
+          acted = true;
+        }
+        if (acted) broadcast();
+      }, 1000);
 
       peer.on('open', function () {
         if (api.onStatus) api.onStatus('房主已就绪 · 等待加入');
@@ -132,8 +159,9 @@
       api.resetChips = function () { room.resetChips(); broadcast(); };
       api.sendAction = function (t, a) { var r = room.doAction(playerId, t, a); if (r && r.error && api.onError) api.onError(r.error); broadcast(); };
       api.rename = function (nm) { if (room.renamePlayer(playerId, nm)) broadcast(); };
+      api.sitOut = function (b) { var mp = room.getPlayer(playerId); if (mp) { mp.sitOut = !!b; broadcast(); } };
       api.leave = function () { };
-      api.destroy = function () { clearBackup(code); try { peer.destroy(); } catch (e) { } };
+      api.destroy = function () { clearBackup(code); clearInterval(turnTimer); try { peer.destroy(); } catch (e) { } };
     }
 
     // ---------- 客户端角色（断线重连 + 超时接管） ----------
@@ -205,6 +233,7 @@
       api.playerId = playerId;
       api.sendAction = function (t, a) { if (conn && conn.open) conn.send({ type: 'action', playerId: api.playerId, action: t, amount: a }); };
       api.rename = function (nm) { if (conn && conn.open) conn.send({ type: 'rename', playerId: api.playerId, name: nm }); };
+      api.sitOut = function (b) { if (conn && conn.open) conn.send({ type: 'sitout', playerId: api.playerId, sitOut: !!b }); };
       api.startGame = function () { };
       api.nextHand = function () { };
       api.resetChips = function () { };
@@ -285,6 +314,7 @@
 
     api.sendAction = function (t, a) { post('/api/action', { code: api.code, playerId: api.playerId, action: t, amount: a }); };
     api.rename = function (name) { post('/api/rename', { code: api.code, playerId: api.playerId, name: name }); };
+    api.sitOut = function (b) { post('/api/sitout', { code: api.code, playerId: api.playerId, sitOut: !!b }); };
     api.startGame = function () { post('/api/control', { code: api.code, playerId: api.playerId, op: 'start' }); };
     api.nextHand = function () { post('/api/control', { code: api.code, playerId: api.playerId, op: 'next' }); };
     api.resetChips = function () { post('/api/control', { code: api.code, playerId: api.playerId, op: 'reset' }); };

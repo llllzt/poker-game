@@ -102,6 +102,16 @@ function listRooms() {
     const rnBad = await httpReq('POST', '/api/rename', { code: CODE, playerId: pidB, name: '   ' });
     ok(rnBad.status === 400, '空昵称改名被拒绝(400)');
 
+    // 6.7 挂机/回桌
+    const so = await httpReq('POST', '/api/sitout', { code: CODE, playerId: pidB, sitOut: true });
+    ok(so.status === 200 && so.json.ok === true, 'B 挂机成功');
+    await sleep(120);
+    ok(sseA.state.players.find((p) => p.id === pidB).sitOut === true, '挂机状态同步（B sitOut=true）');
+    const so2 = await httpReq('POST', '/api/sitout', { code: CODE, playerId: pidB, sitOut: false });
+    ok(so2.status === 200, 'B 回桌成功');
+    await sleep(120);
+    ok(sseA.state.players.find((p) => p.id === pidB).sitOut === false, '回桌状态同步（B sitOut=false）');
+
     // 7. 房主开始
     const st = await httpReq('POST', '/api/control', { code: CODE, playerId: pidA, op: 'start' });
     ok(st.json && st.json.ok === true, '房主开始游戏成功');

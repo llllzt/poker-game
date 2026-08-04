@@ -17,9 +17,9 @@
   var roomCodeEl = $('roomCode'), copyBtn = $('copyBtn'), statusEl = $('status'), leaveBtn = $('leaveBtn');
   var waiting = $('waiting'), playerList = $('playerList'), startBtn = $('startBtn');
   var tableWrap = $('table'), seatsEl = $('seats'), communityEl = $('community'), potEl = $('pot');
-  var actionBar = $('actionBar'), toCallEl = $('toCall'), myChipsEl = $('myChips');
+  var actionBar = $('actionBar'), toCallEl = $('toCall'), myChipsEl = $('myChips'), turnTimerEl = $('turnTimer');
   var raiseBox = $('raiseBox'), raiseInput = $('raiseInput'), raiseLabel = $('raiseLabel'), allinBtn = $('allinBtn'), raiseQuick = $('raiseQuick');
-  var foldBtn = $('foldBtn'), checkBtn = $('checkBtn'), callBtn = $('callBtn'), raiseBtn = $('raiseBtn');
+  var foldBtn = $('foldBtn'), checkBtn = $('checkBtn'), callBtn = $('callBtn'), raiseBtn = $('raiseBtn'), sitoutBtn = $('sitoutBtn');
   var hostBar = $('hostBar'), nextHandBtn = $('nextHandBtn'), resetBtn = $('resetBtn');
   var banner = $('banner');
 
@@ -357,6 +357,7 @@
     info.className = 'pinfo';
     var badges = '';
     if (p.allIn) badges += '<span class="badge allin">ALLIN</span>';
+    if (p.sitOut) badges += '<span class="badge sitout">挂机</span>';
     if (!p.connected) badges += '<span class="badge off">离线</span>';
     // 庄家 / 小盲 / 大盲 标签（一次只可能命中其中一个；庄家时同色 D 优先，SB/BB 紧跟其后）
     var roleTags = '';
@@ -426,7 +427,17 @@
       else if (me.allIn) toCallEl.textContent = '你已全下 · 等待 ' + curName + ' 行动';
       else toCallEl.textContent = '等待 ' + curName + ' 行动…';
     }
+    // 行动倒计时（房主侧每秒广播 state，timeLeft 为剩余秒数）
+    if (turnTimerEl) turnTimerEl.textContent = (state.timeLeft > 0) ? ('⏱ ' + state.timeLeft + 's') : '';
     myChipsEl.textContent = '我的筹码 ' + me.chips + (me.bet > 0 ? ' · 本轮已下 ' + me.bet : '');
+
+    // 挂机/回桌按钮（可随时挂机，回桌后恢复）
+    if (sitoutBtn) {
+      var sitOutOn = !!me.sitOut;
+      sitoutBtn.textContent = sitOutOn ? '回桌' : '挂机';
+      sitoutBtn.classList.toggle('active', sitOutOn);
+      sitoutBtn.disabled = !me.connected;
+    }
 
     // 按钮：自己回合时启用；其他玩家回合时全部 disabled（弃牌始终允许）
     foldBtn.disabled = !canFold;
@@ -505,9 +516,10 @@
       html += '<div class="winners">' + escapeHtml(nameOf(state, r.winners[0])) + ' 赢得底池 ' + r.pots[0].amount + '（其余弃牌）</div>';
     } else {
       html += '<h3>摊牌结果</h3>';
-      r.pots.forEach(function (pot) {
+      r.pots.forEach(function (pot, i) {
         var names = pot.winners.map(function (id) { return escapeHtml(nameOf(state, id)); }).join('、');
-        html += '<div class="winners">' + names + ' 以「' + pot.handName + '」赢得 ' + pot.amount + '</div>';
+        var pool = (r.pots.length > 1) ? (i === 0 ? '主池' : '边池 ' + i) + ' ' : '';
+        html += '<div class="winners">' + pool + names + ' 以「' + pot.handName + '」赢得 ' + pot.amount + '</div>';
       });
       // 5 张公共牌：在 winners 行下方单独展示，让人一眼看出公牌与各人手牌如何组成最终牌型
       if (r.community && r.community.length) {
@@ -515,9 +527,12 @@
         r.community.forEach(function (c) { html += cardHTML(c); });
         html += '</div></div>';
       }
+      // 结算明细：每人牌型（详细名）+ 整手投入
       html += '<div class="reveal">';
       (r.hands || []).forEach(function (h) {
-        html += '<div><div class="who">' + escapeHtml(h.name) + ' · ' + h.handName + '</div><div style="display:flex;gap:3px;justify-content:center">';
+        var detail = h.detail || h.handName || '—';
+        var invest = (typeof h.bet === 'number') ? ' · 投入 ' + h.bet : '';
+        html += '<div><div class="who">' + escapeHtml(h.name) + ' · <b>' + escapeHtml(detail) + '</b>' + invest + '</div><div style="display:flex;gap:3px;justify-content:center">';
         h.cards.forEach(function (c) { html += cardHTML(c); });
         html += '</div></div>';
       });
@@ -564,6 +579,10 @@
     var me = findMe(lastState);
     if (me) net && net.sendAction('raise', me.bet + me.chips);
     raiseBox.classList.add('hidden');
+  });
+  sitoutBtn.addEventListener('click', function () {
+    var me = findMe(lastState);
+    if (me && net && net.sitOut) net.sitOut(!me.sitOut);
   });
 
   startBtn.addEventListener('click', function () { net && net.startGame(); });
@@ -620,5 +639,13 @@
 
   // 启动：探测模式后显示大厅（默认先按输码界面，探测到服务器则切换为目录）
   showScreen('lobby');
+  // 上次牌局会话恢复引导：客户端刷新后自动填好房间码，点「加入」即续玩；
+  // 房主刷新后点「创建房间」会自动复用原房间码并恢复牌局（见 createBtn 逻辑）
+  var sess = loadSession();
+  if (sess && sess.role === 'client' && sess.code) {
+    if (codeInput) codeInput.value = sess.code;
+    if (nameInput && sess.name) nameInput.value = sess.name;
+    lobbyMsg.textContent = '检测到上次牌局（' + sess.code + '），点「加入」继续';
+  }
   detectMode(function (mode) { applyMode(mode); });
 })();
